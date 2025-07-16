@@ -1,0 +1,19 @@
+# Ignorar todo dentro de new y old
+new/*
+old/*
+
+# No ignorar las carpetas para permitir excepciones
+!new/
+!old/
+
+# No ignorar archivos fuente
+!new/*.js
+!old/*.js
+!new/*.c
+!old/*.c
+!new/*.cpp
+!old/*.cpp
+!new/*.h
+!old/*.h
+!old/makefile
+!new/makefile
