@@ -17,3 +17,5 @@ old/*
 !old/*.h
 !old/makefile
 !new/makefile
+!new/txts/
+!new/include/
